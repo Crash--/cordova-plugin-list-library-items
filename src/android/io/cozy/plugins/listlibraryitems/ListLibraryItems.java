@@ -197,7 +197,7 @@ public class ListLibraryItems extends CordovaPlugin {
             return true;
 
         } catch (Exception e) {
-            Log.d("COZY-Drive EXCEPTION", e);
+            Log.d("COZY-Drive EXCEPTION", e.toString());
             e.printStackTrace();
             callbackContext.error(e.getMessage());
             return false;
