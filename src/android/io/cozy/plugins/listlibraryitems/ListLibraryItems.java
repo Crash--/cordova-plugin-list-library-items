@@ -88,6 +88,7 @@ public class ListLibraryItems extends CordovaPlugin {
                 public void run() {
                     try {
                         if (!cordova.hasPermission(READ_EXTERNAL_STORAGE)) {
+                            Log.d("COZY-DRIVE", "dont have auth to read external storage");
                             callbackContext.error(PERMISSION_ERROR);
                         } else {
                             listItems(callbackContext, args.getBoolean(0), args.getBoolean(1), args.getBoolean(2));
@@ -152,9 +153,10 @@ public class ListLibraryItems extends CordovaPlugin {
     }
 
     private boolean listItems(CallbackContext callbackContext, boolean includePictures, boolean includeVideos,
-                              boolean includeCloud) {
+            boolean includeCloud) {
         try {
-            // All columns here: https://developer.android.com/reference/android/provider/MediaStore.Images.ImageColumns.html,
+            // All columns here:
+            // https://developer.android.com/reference/android/provider/MediaStore.Images.ImageColumns.html,
             // https://developer.android.com/reference/android/provider/MediaStore.MediaColumns.html
             JSONObject columns = new JSONObject() {
                 {
@@ -187,12 +189,15 @@ public class ListLibraryItems extends CordovaPlugin {
 
             JSONObject result = new JSONObject();
             result.put("count", queryResults.size());
+            Log.d("COZY-DRIVE", "count : " + queryResults.size());
             result.put("library", new JSONArray(queryResults));
+            Log.d("COZY-DRIVE", "result : " + result.toString());
             PluginResult pluginResult = new PluginResult(PluginResult.Status.OK, result);
             callbackContext.sendPluginResult(pluginResult);
             return true;
 
         } catch (Exception e) {
+            Log.d("COZY-Drive EXCEPTION", e);
             e.printStackTrace();
             callbackContext.error(e.getMessage());
             return false;
@@ -236,9 +241,10 @@ public class ListLibraryItems extends CordovaPlugin {
 
                     if (column.startsWith("int.")) {
                         item.put(column.substring(4), cursor.getInt(columnIndex));
-                        /*if (column.substring(4).equals("width") && item.getInt("width") == 0) {
-                            System.err.println("cursor: " + cursor.getInt(columnIndex));
-                        }*/
+                        /*
+                         * if (column.substring(4).equals("width") && item.getInt("width") == 0) {
+                         * System.err.println("cursor: " + cursor.getInt(columnIndex)); }
+                         */
                     } else if (column.startsWith("float.")) {
                         item.put(column.substring(6), cursor.getFloat(columnIndex));
                     } else if (column.startsWith("date.")) {
@@ -301,14 +307,13 @@ public class ListLibraryItems extends CordovaPlugin {
             Call call = null;
             File thumb = null;
             String method = "POST";
-            if(httpMethod != ""){
+            if (httpMethod != "") {
                 method = httpMethod;
             }
             try {
                 // get file sz
                 final File file = new File(file_path);
                 final long FILE_SZ = file.length();
-
 
                 Headers.Builder hb = new Headers.Builder();
 
@@ -319,16 +324,16 @@ public class ListLibraryItems extends CordovaPlugin {
                     String val = headers.getString(key);
                     hb.add(key, val);
                 }
-                hb.add("Content-Length","" + FILE_SZ);
+                hb.add("Content-Length", "" + FILE_SZ);
                 hb.add("User-Agent", System.getProperty("http.agent"));
-                hb.add("Expect","100-continue");
+                hb.add("Expect", "100-continue");
                 final String contentType = hb.get("Content-Type");
 
                 thumb = createThumbnail(file_path, contentType);
-                if(thumb != null && thumb.exists()) {
+                if (thumb != null && thumb.exists()) {
                     JSONObject json_progress = new JSONObject();
                     try {
-                        json_progress.put("thumbnail",thumb.getAbsoluteFile());
+                        json_progress.put("thumbnail", thumb.getAbsoluteFile());
                     } catch (JSONException ex) {
 
                     }
@@ -342,10 +347,9 @@ public class ListLibraryItems extends CordovaPlugin {
 
                     if (md5 != null) {
                         byte[] encodedBytes = Base64.encode(md5, Base64.DEFAULT);
-                        hb.add("Content-MD5", new String(encodedBytes).replace("\n",""));
+                        hb.add("Content-MD5", new String(encodedBytes).replace("\n", ""));
                     }
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     Log.e("Exception while calculating MD5 checksum", e.toString());
                 }
 
@@ -381,20 +385,11 @@ public class ListLibraryItems extends CordovaPlugin {
                     }
                 };
                 Request request;
-                if(method.equals("PUT")){
-                   request = new Request.Builder()
-                            .url(upload_url)
-                            .headers(hb.build())
-                            .put(body)
-                            .build();
+                if (method.equals("PUT")) {
+                    request = new Request.Builder().url(upload_url).headers(hb.build()).put(body).build();
                 } else {
-                    request = new Request.Builder()
-                            .url(upload_url)
-                            .headers(hb.build())
-                            .post(body)
-                            .build();
+                    request = new Request.Builder().url(upload_url).headers(hb.build()).post(body).build();
                 }
-
 
                 call = client.newCall(request);
                 Response response = call.execute();
@@ -444,7 +439,7 @@ public class ListLibraryItems extends CordovaPlugin {
                 if (call != null) {
                     call.cancel();
                 }
-                if(thumb != null && thumb.exists()) {
+                if (thumb != null && thumb.exists()) {
                     thumb.delete();
                 }
             }
@@ -460,7 +455,7 @@ public class ListLibraryItems extends CordovaPlugin {
             float percent = ((float) values[1] / (float) values[2]) * 100.f;
             JSONObject json_progress = new JSONObject();
             try {
-                json_progress.put("progress",(int)percent);
+                json_progress.put("progress", (int) percent);
             } catch (JSONException ex) {
 
             }
@@ -474,7 +469,7 @@ public class ListLibraryItems extends CordovaPlugin {
             super.onPostExecute(aResponseCode);
         }
 
-        protected byte[] calculateMD5 (File updateFile) {
+        protected byte[] calculateMD5(File updateFile) {
             MessageDigest digest;
             try {
                 digest = MessageDigest.getInstance("MD5");
@@ -513,7 +508,7 @@ public class ListLibraryItems extends CordovaPlugin {
         private File createThumbnail(String filePath, String contentType) throws IOException {
             Bitmap bmp = null;
             String type = "img";
-            if(contentType.startsWith("video")) {
+            if (contentType.startsWith("video")) {
                 bmp = ThumbnailUtils.createVideoThumbnail(filePath, MediaStore.Video.Thumbnails.MINI_KIND);
                 type = "video";
             } else {
@@ -521,22 +516,22 @@ public class ListLibraryItems extends CordovaPlugin {
                 opts.inScaled = true;
                 opts.inDensity = 640;
                 opts.inTargetDensity = DisplayMetrics.DENSITY_LOW;
-                bmp = BitmapFactory.decodeFile(filePath,opts);
+                bmp = BitmapFactory.decodeFile(filePath, opts);
             }
 
             File thumb = null;
 
-            if(bmp != null) {
-                File thumbDir = new File(mContext.getCacheDir(),"thumbs");
+            if (bmp != null) {
+                File thumbDir = new File(mContext.getCacheDir(), "thumbs");
                 boolean exist = thumbDir.exists();
-                if(!exist) {
+                if (!exist) {
                     exist = thumbDir.mkdir();
                 }
-                if(exist) {
-                    thumb = File.createTempFile(type+"-",".png",thumbDir);
-                    if(thumb.exists()) {
+                if (exist) {
+                    thumb = File.createTempFile(type + "-", ".png", thumbDir);
+                    if (thumb.exists()) {
                         FileOutputStream stream = new FileOutputStream(thumb);
-                        bmp.compress(Bitmap.CompressFormat.PNG,100,stream);
+                        bmp.compress(Bitmap.CompressFormat.PNG, 100, stream);
                     } else {
                         thumb = null;
                     }
