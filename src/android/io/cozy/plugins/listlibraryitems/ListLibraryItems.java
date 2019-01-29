@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -204,6 +205,9 @@ public class ListLibraryItems extends CordovaPlugin {
         }
     }
 
+    private static final Set<String> FILTER_FOLDERS = new HashSet<String>(
+            Arrays.asList(new String[] { "camera", "100andro", "100media" }));
+
     private ArrayList<JSONObject> queryContentProvider(Context context, Uri collection, JSONObject columns)
             throws Exception {
 
@@ -228,40 +232,44 @@ public class ListLibraryItems extends CordovaPlugin {
         final String sortOrder = MediaStore.Images.Media.DATE_TAKEN;
 
         final Cursor cursor = context.getContentResolver().query(collection,
-                columnValues.toArray(new String[columns.length()]), selection, selectionArgs, sortOrder);
+                columnValues.toArray(new String[columns.length()]), null, null, sortOrder);
 
         final ArrayList<JSONObject> buffer = new ArrayList<JSONObject>();
 
         if (cursor.moveToFirst()) {
+            int dataColumn = cursor.getColumnIndex(MediaStore.Images.Media.DATA);
+            int bucketColumn = cursor.getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME);
             do {
-                JSONObject item = new JSONObject();
+                if (FILTER_FOLDERS.contains(cursor.getString(bucketColumn).toLowerCase(Locale.getDefault()))) {
+                    JSONObject item = new JSONObject();
 
-                for (String column : columnNames) {
-                    int columnIndex = cursor.getColumnIndex(columns.get(column).toString());
+                    for (String column : columnNames) {
+                        int columnIndex = cursor.getColumnIndex(columns.get(column).toString());
 
-                    if (column.startsWith("int.")) {
-                        item.put(column.substring(4), cursor.getInt(columnIndex));
-                        /*
-                         * if (column.substring(4).equals("width") && item.getInt("width") == 0) {
-                         * System.err.println("cursor: " + cursor.getInt(columnIndex)); }
-                         */
-                    } else if (column.startsWith("float.")) {
-                        item.put(column.substring(6), cursor.getFloat(columnIndex));
-                    } else if (column.startsWith("date.")) {
-                        long intDate = cursor.getLong(columnIndex);
-                        Date date = new Date(intDate);
-                        item.put(column.substring(5), mDateFormatter.format(date));
-                    } else {
-                        item.put(column, cursor.getString(columnIndex));
+                        if (column.startsWith("int.")) {
+                            item.put(column.substring(4), cursor.getInt(columnIndex));
+                            /*
+                             * if (column.substring(4).equals("width") && item.getInt("width") == 0) {
+                             * System.err.println("cursor: " + cursor.getInt(columnIndex)); }
+                             */
+                        } else if (column.startsWith("float.")) {
+                            item.put(column.substring(6), cursor.getFloat(columnIndex));
+                        } else if (column.startsWith("date.")) {
+                            long intDate = cursor.getLong(columnIndex);
+                            Date date = new Date(intDate);
+                            item.put(column.substring(5), mDateFormatter.format(date));
+                        } else {
+                            item.put(column, cursor.getString(columnIndex));
+                        }
                     }
+
+                    item.put("mimeType", getMimeType(item.getString("filePath")));
+                    buffer.add(item);
+
+                    // TODO: return partial result
                 }
-
-                item.put("mimeType", getMimeType(item.getString("filePath")));
-                buffer.add(item);
-
-                // TODO: return partial result
-
             } while (cursor.moveToNext());
+
         }
 
         cursor.close();
